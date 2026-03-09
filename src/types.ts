@@ -17,3 +17,19 @@ export interface Task {
   priority: 'low' | 'medium' | 'high';
   created_at: string;
 }
+
+export interface S1Case {
+  case_id: string;
+  dt: string;
+  channel: string;
+  subject: string;
+  group_id: string;
+  group_name: string;
+  assigned_to: string;
+  classification: string;
+  campaign_name: string;
+  user_name: string;
+  [key: string]: string;
+}
+  [key: string]: string;
+}

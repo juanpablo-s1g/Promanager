@@ -1,0 +1,2218 @@
+{
+  "info": {
+    "_postman_id": "e8f7b279-9f47-4dc9-8cf2-833901824154",
+    "name": "S1_Analytics_Data_API (client) Copy 2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "15003716"
+  },
+  "item": [
+    {
+      "name": "post_generate_token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "   ",
+              "   pm.environment.set(\"api_token\", jsonData.data.token);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "key",
+              "value": "{{public_key}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://{{s1_api_server}}/api/public/token/",
+          "protocol": "https",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "token",
+            ""
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_cases_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=cases_detail&date_from=2020-06-01 00:00:00&date_to=2020-06-01 01:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "cases_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-06-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-06-01 01:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_messages_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=messages_detail&date_from=2020-06-01 00:00:00&date_to=2020-06-02 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "messages_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-06-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-06-02 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_referral_ads_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=messages_detail&date_from=2020-06-01 00:00:00&date_to=2020-06-02 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "messages_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-06-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-06-02 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_routes_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=routes_detail&date_from=2020-06-01 00:00:00&date_to=2020-06-02 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "routes_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-06-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-06-02 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_attachments_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{s1_api_header_host}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          },
+          {
+            "key": "X-Forwarded-Proto",
+            "value": "https",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=attachments_detail&date_from=2022-01-01 12:00:00&date_to=2023-05-10 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "attachments_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2022-01-01 12:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2023-05-10 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_case_classificationtags_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{s1_api_header_host}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          },
+          {
+            "key": "X-Forwarded-Proto",
+            "value": "https",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=case_classificationtags_detail&date_from=2022-01-01 12:00:00&date_to=2023-05-10 00:00:00&offset=0&page_size=100",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "case_classificationtags_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2022-01-01 12:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2023-05-10 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "100"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "case_tags_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=case_tags_detail&date_from=2020-01-01 00:00:00&date_to=2020-01-01 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "case_tags_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-01-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-01-01 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_logins_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{s1_api_header_host}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          },
+          {
+            "key": "X-Forwarded-Proto",
+            "value": "https",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=logins_detail&date_from=2023-11-01 00:00:00&date_to=2023-11-01 23:59:50&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "logins_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2023-11-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2023-11-01 23:59:50"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_broadcastapi_messages_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=broadcastapi_messages_detail&date_from=2024-10-01 00:00:00&date_to=2024-10-31 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "broadcastapi_messages_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2024-10-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2024-10-31 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_broadcast_messages_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=broadcastapi_messages_detail&date_from=2024-10-01 00:00:00&date_to=2024-10-31 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "broadcastapi_messages_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2024-10-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2024-10-31 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_audit_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=audit_detail&date_from=2025-01-01 00:00:00&date_to=2025-01-31 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "audit_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2025-01-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2025-01-31 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_bots_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{s1_api_header_host}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          },
+          {
+            "key": "X-Forwarded-Proto",
+            "value": "https",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=bots_detail&date_from=2025-04-01 12:00:00&date_to=2025-04-05 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "bots_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2025-04-01 12:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2025-04-05 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_bots_ keepdata_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{s1_api_header_host}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          },
+          {
+            "key": "X-Forwarded-Proto",
+            "value": "https",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=bots_detail&date_from=2025-04-01 12:00:00&date_to=2025-04-05 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "bots_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2025-04-01 12:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2025-04-05 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_agents_status_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{s1_api_header_host}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          },
+          {
+            "key": "X-Forwarded-Proto",
+            "value": "https",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=agents_status_detail&date_from=2025-04-01 00:00:00&date_to=2025-04-05 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "agents_status_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2025-04-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2025-04-05 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_cases_status_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{s1_api_header_host}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          },
+          {
+            "key": "X-Forwarded-Proto",
+            "value": "https",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=cases_status_detail&date_from=2025-04-01 00:00:00&date_to=2025-04-05 00:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "cases_status_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2025-04-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2025-04-05 00:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_occ_status_sum",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=occ_status_sum&date_from=2020-06-01 00:00:00&date_to=2020-06-02 00:00:00&campaigns=10000&channels=webchat&accept_aban_time=3",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "occ_status_sum"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-06-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-06-02 00:00:00"
+            },
+            {
+              "key": "campaigns",
+              "value": "10000"
+            },
+            {
+              "key": "channels",
+              "value": "webchat"
+            },
+            {
+              "key": "accept_aban_time",
+              "value": "3"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_occ_hourly_sum",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=occ_hourly_sum&date_from=2020-06-01 00:00:00&date_to=2020-06-02 00:00:00&campaigns=10000&channels=webchat",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "occ_hourly_sum"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-06-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-06-02 00:00:00"
+            },
+            {
+              "key": "campaigns",
+              "value": "10000"
+            },
+            {
+              "key": "channels",
+              "value": "webchat"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_svc_indicators_sum",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=svc_indicators_sum&date_from=2020-06-01 00:00:00&date_to=2020-06-02 00:00:00&campaigns=10000&channels=webchat&accept_aban_time=3&accept_wait_time=5&include_wait_zero=1",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "svc_indicators_sum"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-06-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-06-02 00:00:00"
+            },
+            {
+              "key": "campaigns",
+              "value": "10000"
+            },
+            {
+              "key": "channels",
+              "value": "webchat"
+            },
+            {
+              "key": "accept_aban_time",
+              "value": "3"
+            },
+            {
+              "key": "accept_wait_time",
+              "value": "5"
+            },
+            {
+              "key": "include_wait_zero",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_campaign_cat",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=campaign_cat&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "campaign_cat"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_group_cat",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=group_cat&campaigns=10000&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "group_cat"
+            },
+            {
+              "key": "campaigns",
+              "value": "10000"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get_data_user_cat",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          },
+          {
+            "key": "Host",
+            "value": "{{s1_api_header_host}}",
+            "type": "text"
+          },
+          {
+            "key": "X-Forwarded-Proto",
+            "value": "https",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=user_cat&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "user_cat"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "surveys_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=surveys_detail&date_from=2020-06-01 00:00:00&date_to=2020-06-01 01:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "surveys_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-06-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-06-01 01:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "surveys_questions_detail",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "   pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response time is less than 200ms\", function () {",
+              "   pm.expect(pm.response.responseTime).to.be.below(200);",
+              "});",
+              "pm.test(\"response must be valid and have a body\", function () {",
+              "    // assert that the status code is 200",
+              "    pm.response.to.be.ok; // info, success, redirection, clientError,  serverError, are other variants",
+              "    pm.response.to.be.json;",
+              "});",
+              "pm.test(\"S1 Success\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "pm.test(\"Data\", function () {",
+              "   var jsonData = pm.response.json();",
+              "   pm.expect(jsonData.data);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://{{s1_api_server}}/api/public/get/?type=surveys_questions_detail&date_from=2020-06-01 00:00:00&date_to=2020-06-01 01:00:00&offset=0&page_size=1000",
+          "protocol": "http",
+          "host": [
+            "{{s1_api_server}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "get",
+            ""
+          ],
+          "query": [
+            {
+              "key": "type",
+              "value": "surveys_questions_detail"
+            },
+            {
+              "key": "date_from",
+              "value": "2020-06-01 00:00:00"
+            },
+            {
+              "key": "date_to",
+              "value": "2020-06-01 01:00:00"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "page_size",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ]
+}
