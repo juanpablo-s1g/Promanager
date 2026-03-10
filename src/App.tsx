@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -6,6 +6,8 @@ import {
   Clock, 
   AlertCircle, 
   ChevronRight, 
+  ChevronDown,
+  ChevronLeft,
   Download, 
   LayoutDashboard, 
   CheckSquare,
@@ -18,15 +20,20 @@ import {
   Database,
   Moon,
   Sun,
+  Edit3,
   TrendingUp,
   Target,
   Zap,
   Award,
-  Activity
+  Activity,
+  Filter,
+  FolderOpen,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
-import { Project, Task, S1Case } from './types';
+import { Project, Task, S1Case, Team } from './types';
+import { exportReportPDF, exportReportDOCX } from './exportReport';
 
 export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -37,7 +44,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   
   // S1 Analytics state
-  const [activeView, setActiveView] = useState<'overview' | 'analytics' | 'reports'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'analytics' | 'reports' | 'teams'>('overview');
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [s1Cases, setS1Cases] = useState<S1Case[]>([]);
@@ -48,10 +55,188 @@ export default function App() {
   const [s1Campaigns, setS1Campaigns] = useState('');
   const [s1Pagination, setS1Pagination] = useState({ offset: 0, page_size: 100, total: 0 });
   const [addToProjectModalCase, setAddToProjectModalCase] = useState<S1Case | null>(null);
-  const [addedCaseIds, setAddedCaseIds] = useState<Set<string>>(new Set());
+  const [addedCaseIds, setAddedCaseIds] = useState<Map<string, { projectId: number; taskId: number }>>(new Map());
   const [pendingCaseForProject, setPendingCaseForProject] = useState<S1Case | null>(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true');
   const [editingAssignee, setEditingAssignee] = useState<number | null>(null);
+
+  // Function to map case_state_id to Spanish text
+  const getCaseStateText = (case_state_id?: number): string => {
+    if (!case_state_id) return 'Sin Estado';
+    
+    const stateMap: Record<number, string> = {
+      1: 'En Cola',
+      2: 'En curso',
+      3: 'Pendiente',
+      4: 'Esperando Respuesta',
+      5: 'Resuelto'
+    };
+    
+    return stateMap[case_state_id] || `Estado ${case_state_id}`;
+  };
+
+  // Function to get case state color based on state_id
+  const getCaseStateColor = (case_state_id?: number): string => {
+    if (!case_state_id) return 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800';
+    
+    switch (case_state_id) {
+      case 1: // En Cola
+        return 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+      case 2: // En curso
+        return 'bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
+      case 3: // Pendiente
+        return 'bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800';
+      case 4: // Esperando Respuesta
+        return 'bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+      case 5: // Resuelto
+        return 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+      default:
+        return 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800';
+    }
+  };
+
+  // Teams state
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isNewTeamModalOpen, setIsNewTeamModalOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [isEditingProjectTeam, setIsEditingProjectTeam] = useState(false);
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('all');
+  const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Alert and Confirmation system
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ isOpen: false, title: '', message: '', type: 'info' });
+  
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+  // S1 Analytics table filters
+  const [s1Filters, setS1Filters] = useState<Record<string, string>>({
+    group_name: '',
+    assigned_to: '',
+    classification: '',
+    channel: '',
+    quarter: '',
+    case_status: '',
+    task_status: '',
+    subject: '',
+  });
+
+  const s1FilterOptions = useMemo(() => {
+    const opts: Record<string, string[]> = { group_name: [], assigned_to: [], classification: [], channel: [], quarter: [], case_status: [], task_status: [] };
+    const sets: Record<string, Set<string>> = {
+      group_name: new Set(),
+      assigned_to: new Set(),
+      classification: new Set(),
+      channel: new Set(),
+      quarter: new Set(),
+      case_status: new Set(),
+      task_status: new Set(),
+    };
+    // Only include filter options from active cases (not resolved)
+    for (const c of s1Cases.filter(c => !c.is_case_resolved)) {
+      if (c.group_name) sets.group_name.add(c.group_name);
+      if (c.assigned_to) sets.assigned_to.add(c.assigned_to);
+      if (c.classification) sets.classification.add(c.classification);
+      if (c.channel) sets.channel.add(c.channel);
+      if (c.quarter) sets.quarter.add(c.quarter);
+      if (c.case_state_id) sets.case_status.add(getCaseStateText(c.case_state_id));
+      if (c.task_status) sets.task_status.add(c.task_status);
+    }
+    for (const key of Object.keys(sets)) {
+      opts[key] = [...sets[key]].sort();
+    }
+    return opts;
+  }, [s1Cases]);
+
+  const filteredS1Cases = useMemo(() => {
+    return s1Cases.filter(c => {
+      // First filter out resolved/eliminated cases for display (but keep for sync)
+      if (c.is_case_resolved) return false;
+      
+      // Then apply user filters
+      if (s1Filters.group_name && (c.group_name || '') !== s1Filters.group_name) return false;
+      if (s1Filters.assigned_to && (c.assigned_to || '') !== s1Filters.assigned_to) return false;
+      if (s1Filters.classification && (c.classification || '') !== s1Filters.classification) return false;
+      if (s1Filters.channel && (c.channel || '') !== s1Filters.channel) return false;
+      if (s1Filters.quarter && (c.quarter || '') !== s1Filters.quarter) return false;
+      if (s1Filters.case_status && getCaseStateText(c.case_state_id) !== s1Filters.case_status) return false;
+      if (s1Filters.task_status && (c.task_status || '') !== s1Filters.task_status) return false;
+      if (s1Filters.subject && !(c.subject || '').toLowerCase().includes(s1Filters.subject.toLowerCase())) return false;
+      return true;
+    });
+  }, [s1Cases, s1Filters]);
+
+  const activeFilterCount = Object.values(s1Filters).filter(v => v !== '').length;
+
+  // Get team stats
+  const teamStats = useMemo(() => {
+    const stats: Record<string, { totalProjects: number; totalTasks: number; completedTasks: number; color: string }> = {};
+    
+    for (const project of projects) {
+      const teamName = project.team || 'Unassigned';
+      const team = teams.find(t => t.name === teamName);
+      
+      if (!stats[teamName]) {
+        stats[teamName] = {
+          totalProjects: 0,
+          totalTasks: 0,
+          completedTasks: 0,
+          color: team?.color || '#64748b'
+        };
+      }
+      
+      stats[teamName].totalProjects++;
+      stats[teamName].totalTasks += project.total_tasks;
+      stats[teamName].completedTasks += project.completed_tasks;
+    }
+    
+    return stats;
+  }, [projects, teams]);
+
+  const toggleTeamCollapse = (teamName: string) => {
+    setCollapsedTeams(prev => {
+      const next = new Set(prev);
+      if (next.has(teamName)) {
+        next.delete(teamName);
+      } else {
+        next.add(teamName);
+      }
+      return next;
+    });
+  };
+
+  // Group projects by team
+  const projectsByTeam = useMemo(() => {
+    const grouped: Record<string, Project[]> = {};
+    for (const project of projects) {
+      const team = project.team || 'Unassigned';
+      if (!grouped[team]) grouped[team] = [];
+      grouped[team].push(project);
+    }
+    return grouped;
+  }, [projects]);
+  const filteredProjects = useMemo(() => {
+    if (selectedTeamFilter === 'all') {
+      return projects;
+    }
+    return projects.filter(project => {
+      const projectTeam = project.team || 'Unassigned';
+      return projectTeam === selectedTeamFilter;
+    });
+  }, [projects, selectedTeamFilter]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -60,6 +245,7 @@ export default function App() {
 
   useEffect(() => {
     fetchProjects();
+    fetchTeams();
   }, []);
 
   useEffect(() => {
@@ -90,17 +276,28 @@ export default function App() {
     }
   };
 
+  const fetchTeams = async () => {
+    try {
+      const res = await fetch('/api/teams');
+      const data = await res.json();
+      setTeams(data);
+    } catch (err) {
+      console.error('Error fetching teams:', err);
+    }
+  };
+
   const createProject = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
+    const team = formData.get('team') as string;
 
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description }),
+        body: JSON.stringify({ name, description, team }),
       });
       if (res.ok) {
         const newProject = await res.json();
@@ -113,6 +310,142 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error creating project:', err);
+    }
+  };
+
+  const createTeam = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
+    const description = formData.get('description') as string;
+    const color = formData.get('color') as string;
+
+    try {
+      const res = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, color }),
+      });
+      if (res.ok) {
+        setIsNewTeamModalOpen(false);
+        await fetchTeams();
+        // Reset form
+        (e.target as HTMLFormElement).reset();
+      }
+    } catch (err) {
+      console.error('Error creating team:', err);
+    }
+  };
+
+  const deleteTeam = async (teamId: number) => {
+    showConfirm(
+      'Eliminar Equipo',
+      '¿Estás seguro de que quieres eliminar este equipo? Esta acción no se puede deshacer.',
+      async () => {
+        try {
+          const res = await fetch(`/api/teams/${teamId}`, {
+            method: 'DELETE',
+          });
+          if (res.ok) {
+            await fetchTeams();
+            await fetchProjects();
+            showAlert('Éxito', 'El equipo ha sido eliminado correctamente.', 'success');
+          } else {
+            showAlert('Error', 'Error al eliminar el equipo. Inténtalo de nuevo.', 'error');
+          }
+        } catch (err) {
+          console.error('Error deleting team:', err);
+          showAlert('Error de Conexión', 'Error al eliminar el equipo. Verifica tu conexión.', 'error');
+        }
+        setConfirmModal({ ...confirmModal, isOpen: false });
+      },
+      {
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar'
+      }
+    );
+  };
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertModal({ isOpen: true, title, message, type });
+  };
+
+  const showConfirm = (
+    title: string, 
+    message: string, 
+    onConfirm: () => void, 
+    options?: {
+      onCancel?: () => void;
+      confirmText?: string;
+      cancelText?: string;
+    }
+  ) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      onCancel: options?.onCancel,
+      confirmText: options?.confirmText || 'Confirmar',
+      cancelText: options?.cancelText || 'Cancelar'
+    });
+  };
+
+  const updateProjectTeam = async (projectId: number, newTeam: string) => {
+    const projectToUpdate = projects.find(p => p.id === projectId);
+    if (!projectToUpdate) return;
+
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: projectToUpdate.name, 
+          description: projectToUpdate.description, 
+          team: newTeam 
+        }),
+      });
+      if (res.ok) {
+        await fetchProjects();
+        // Update selectedProject if it's the one being updated
+        if (selectedProject?.id === projectId) {
+          setSelectedProject({ ...selectedProject, team: newTeam });
+        }
+        setIsEditingProjectTeam(false);
+      } else {
+        showAlert('Error', 'Error al actualizar el equipo del proyecto.', 'error');
+      }
+    } catch (err) {
+      console.error('Error updating project team:', err);
+      showAlert('Error de Conexión', 'Error al actualizar el equipo del proyecto.', 'error');
+    }
+  };
+
+  const updateTeam = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingTeam) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
+    const description = formData.get('description') as string;
+    const color = formData.get('color') as string;
+
+    try {
+      const res = await fetch(`/api/teams/${editingTeam.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, color }),
+      });
+      if (res.ok) {
+        setEditingTeam(null);
+        await fetchTeams();
+        await fetchProjects();
+      } else {
+        showAlert('Error', 'Error al actualizar el equipo.', 'error');
+      }
+    } catch (err) {
+      console.error('Error updating team:', err);
+      showAlert('Error de Conexión', 'Error al actualizar el equipo.', 'error');
     }
   };
 
@@ -178,29 +511,57 @@ export default function App() {
   };
 
   const deleteTask = async (taskId: number) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
-    try {
-      const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
-      if (res.ok && selectedProject) {
-        fetchTasks(selectedProject.id);
-        fetchProjects();
+    showConfirm(
+      'Eliminar Tarea',
+      '¿Estás seguro de que quieres eliminar esta tarea?',
+      async () => {
+        try {
+          const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+          if (res.ok && selectedProject) {
+            fetchTasks(selectedProject.id);
+            fetchProjects();
+            showAlert('Éxito', 'La tarea ha sido eliminada correctamente.', 'success');
+          } else {
+            showAlert('Error', 'Error al eliminar la tarea.', 'error');
+          }
+        } catch (err) {
+          console.error('Error deleting task:', err);
+          showAlert('Error de Conexión', 'Error al eliminar la tarea.', 'error');
+        }
+        setConfirmModal({ ...confirmModal, isOpen: false });
+      },
+      {
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar'
       }
-    } catch (err) {
-      console.error('Error deleting task:', err);
-    }
+    );
   };
 
   const deleteProject = async (projectId: number) => {
-    if (!confirm('Are you sure you want to delete this project and all its tasks?')) return;
-    try {
-      const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setSelectedProject(null);
-        fetchProjects();
+    showConfirm(
+      'Eliminar Proyecto',
+      '¿Estás seguro de que quieres eliminar este proyecto y todas sus tareas?',
+      async () => {
+        try {
+          const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+          if (res.ok) {
+            setSelectedProject(null);
+            fetchProjects();
+            showAlert('Éxito', 'El proyecto ha sido eliminado correctamente.', 'success');
+          } else {
+            showAlert('Error', 'Error al eliminar el proyecto.', 'error');
+          }
+        } catch (err) {
+          console.error('Error deleting project:', err);
+          showAlert('Error de Conexión', 'Error al eliminar el proyecto.', 'error');
+        }
+        setConfirmModal({ ...confirmModal, isOpen: false });
+      },
+      {
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar'
       }
-    } catch (err) {
-      console.error('Error deleting project:', err);
-    }
+    );
   };
 
   const exportToExcel = async () => {
@@ -218,11 +579,17 @@ export default function App() {
         'Group Name': c.group_name || '',
         'Assigned To': c.assigned_to || '',
         'Classification': c.classification || '',
+        'Quarter': c.quarter || '',
+        'Case Status': getCaseStateText(c.case_state_id),
+        'Task ID': c.task_id || '',
+        'Task Status': c.task_status || '',
+        'Is Task Completed': c.is_task_completed ? 'Yes' : 'No',
+        'Auto Completed': c.task_auto_completed ? 'Yes' : 'No',
         'Campaign': c.campaign_name || '',
         'User': c.user_name || '',
       }));
       const ws = XLSX.utils.json_to_sheet(casesData);
-      ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 50 }, { wch: 14 }, { wch: 10 }, { wch: 25 }, { wch: 30 }, { wch: 18 }, { wch: 15 }, { wch: 20 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 50 }, { wch: 14 }, { wch: 10 }, { wch: 25 }, { wch: 30 }, { wch: 18 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 20 }];
       XLSX.utils.book_append_sheet(workbook, ws, 'S1 Cases');
       XLSX.writeFile(workbook, `S1_Analytics_Cases_${today}.xlsx`);
       return;
@@ -235,7 +602,7 @@ export default function App() {
 
       // Sheet 1: Summary
       const summaryData = [
-        ['ProManager Report', '', '', `Generated: ${new Date().toLocaleString()}`],
+        ['S1 Projects Report', '', '', `Generated: ${new Date().toLocaleString()}`],
         [],
         ['Metric', 'Value'],
         ['Total Projects', report.summary.totalProjects],
@@ -316,7 +683,7 @@ export default function App() {
         XLSX.utils.book_append_sheet(workbook, wsAssignee, 'Workload');
       }
 
-      XLSX.writeFile(workbook, `ProManager_Report_${today}.xlsx`);
+      XLSX.writeFile(workbook, `S1_Projects_Report_${today}.xlsx`);
     } catch (err) {
       console.error('Error exporting report:', err);
     }
@@ -324,17 +691,55 @@ export default function App() {
 
   const fetchS1Cases = async (offset = 0) => {
     if (!s1DateFrom) return;
+    console.log(`Debug Frontend: Fetching S1 cases with date_from: ${s1DateFrom}, date_to: ${s1DateTo || 'not set'}, offset: ${offset}`);
     setS1Loading(true);
     setS1Error(null);
+    if (offset === 0) setS1Filters({ group_name: '', assigned_to: '', classification: '', channel: '', quarter: '', case_status: '', task_status: '', subject: '' });
     try {
-      const params = new URLSearchParams({ date_from: `${s1DateFrom} 00:00:00`, page_size: '100', offset: String(offset) });
+      const params = new URLSearchParams({ 
+        date_from: `${s1DateFrom} 00:00:00`, 
+        page_size: '100', 
+        offset: String(offset),
+        campaigns: s1Campaigns || '8322880'  // Always include campaigns for group_cat API
+      });
       if (s1DateTo) params.append('date_to', `${s1DateTo} 23:59:59`);
-      if (s1Campaigns) params.append('campaigns', s1Campaigns);
+      console.log(`Debug Frontend: API params: ${params.toString()}`);
       const res = await fetch(`/api/s1-analytics/report?${params.toString()}`);
+      console.log('Debug Frontend: Response status:', res.status);
       const data = await res.json();
       if (data.success) {
-        setS1Cases(data.data || []);
+        const cases: S1Case[] = data.data || [];
+        console.log(`Debug Frontend: Received ${cases.length} cases from API`);
+        if (cases.length > 0) {
+          console.log(`Debug Frontend: First case sample:`, cases[0]);
+        }
+        setS1Cases(cases);
         setS1Pagination({ offset, page_size: data.pagination?.page_size || 100, total: data.pagination?.total || 0 });
+        // Detect cases already added as tasks
+        if (cases.length > 0) {
+          const caseIds = cases.map(c => c.case_id);
+          try {
+            const findRes = await fetch('/api/tasks/find-by-cases', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ case_ids: caseIds }),
+            });
+            if (findRes.ok) {
+              const found: { case_id: string; task_id: number; project_id: number }[] = await findRes.json();
+              if (found.length > 0) {
+                setAddedCaseIds(prev => {
+                  const next = new Map(prev);
+                  for (const f of found) {
+                    next.set(f.case_id, { projectId: f.project_id, taskId: f.task_id });
+                  }
+                  return next;
+                });
+              }
+            }
+          } catch (e) {
+            console.error('Error detecting existing cases:', e);
+          }
+        }
       } else {
         setS1Error(data.result_message || data.error || 'Error fetching cases');
         setS1Cases([]);
@@ -347,8 +752,59 @@ export default function App() {
     }
   };
 
+  const handleExportPDF = async () => {
+    try {
+      const res = await fetch('/api/reports');
+      const report = await res.json();
+      exportReportPDF(report, s1Cases);
+    } catch (err) {
+      showAlert('Error de Exportación', 'Error al exportar el PDF. Inténtalo de nuevo.', 'error');
+    }
+  };
+
+  const handleExportDOCX = async () => {
+    try {
+      const res = await fetch('/api/reports');
+      const report = await res.json();
+      await exportReportDOCX(report, s1Cases);
+    } catch (err) {
+      showAlert('Error de Exportación', 'Error al exportar el DOCX. Inténtalo de nuevo.', 'error');
+    }
+  };
+
   const addCaseAsTask = async (s1Case: S1Case, projectId: number) => {
     try {
+      const existing = addedCaseIds.get(s1Case.case_id);
+
+      // If already assigned to the same project, just close the modal
+      if (existing && existing.projectId === projectId) {
+        setAddToProjectModalCase(null);
+        return;
+      }
+
+      // If reassigning to a different project, move the task
+      if (existing) {
+        const res = await fetch(`/api/tasks/${existing.taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: projectId }),
+        });
+        if (res.ok) {
+          setAddedCaseIds(prev => {
+            const next = new Map(prev);
+            next.set(s1Case.case_id, { projectId, taskId: existing.taskId });
+            return next;
+          });
+          setAddToProjectModalCase(null);
+          fetchProjects();
+          if (selectedProject?.id === projectId || selectedProject?.id === existing.projectId) {
+            fetchTasks(selectedProject!.id);
+          }
+        }
+        return;
+      }
+
+      // New task
       const taskData = {
         title: `[Case #${s1Case.case_id}] ${s1Case.subject || 'S1 Analytics Case'}`,
         description: `Group: ${s1Case.group_name || s1Case.group_id || 'N/A'} | Assigned To: ${s1Case.assigned_to || 'N/A'} | Classification: ${s1Case.classification || 'N/A'} | Channel: ${s1Case.channel || 'N/A'} | Date: ${s1Case.dt || 'N/A'}`,
@@ -362,7 +818,12 @@ export default function App() {
         body: JSON.stringify(taskData),
       });
       if (res.ok) {
-        setAddedCaseIds(prev => new Set(prev).add(s1Case.case_id));
+        const newTask = await res.json();
+        setAddedCaseIds(prev => {
+          const next = new Map(prev);
+          next.set(s1Case.case_id, { projectId, taskId: newTask.id });
+          return next;
+        });
         setAddToProjectModalCase(null);
         fetchProjects();
         if (selectedProject?.id === projectId) {
@@ -425,7 +886,7 @@ export default function App() {
       <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading ProManager...</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading S1 Projects...</p>
         </div>
       </div>
     );
@@ -434,56 +895,172 @@ export default function App() {
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950">
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400 font-bold text-xl">
-            <LayoutDashboard className="w-6 h-6" />
-            <span>ProManager</span>
+      <aside className={`${sidebarCollapsed ? 'w-16' : 'w-72'} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col transition-all duration-300 relative`}>
+        {/* Header */}
+        <div className={`${sidebarCollapsed ? 'p-2' : 'p-6'} border-b border-slate-100 dark:border-slate-800 flex items-center justify-between`}>
+          <div className={`flex items-center gap-2 text-sky-600 dark:text-sky-400 font-bold text-xl transition-opacity ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+            <img src="/s1_logo.png" alt="S1 Logo" className="w-6 h-6 object-contain" />
+            <span>S1 Projects</span>
           </div>
+          <button 
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className={`${sidebarCollapsed ? 'p-3 mx-auto' : 'p-1'} rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0`}
+            title={sidebarCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+          >
+            {sidebarCollapsed ? <ChevronRight className="w-4 h-4 text-slate-500" /> : <ChevronLeft className="w-4 h-4 text-slate-500" />}
+          </button>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
-          <button 
-            onClick={() => { setSelectedProject(null); setActiveView('overview'); }}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${!selectedProject && activeView === 'overview' ? 'bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            Overview
-          </button>
-          <button 
-            onClick={() => { setSelectedProject(null); setActiveView('reports'); }}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${!selectedProject && activeView === 'reports' ? 'bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            Reports
-          </button>
-          <button 
-            onClick={() => { setSelectedProject(null); setActiveView('analytics'); }}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${!selectedProject && activeView === 'analytics' ? 'bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            <Database className="w-4 h-4" />
-            S1 Analytics
-          </button>
-          <div className="pt-4 pb-2 px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-            Projects
-          </div>
-          {projects.map(project => (
-            <button
-              key={project.id}
-              onClick={() => { setSelectedProject(project); setActiveView('overview'); }}
-              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${selectedProject?.id === project.id ? 'bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+        <nav className={`flex-1 ${sidebarCollapsed ? 'p-2' : 'p-4'} space-y-2 overflow-y-auto`}>
+          {/* Main Navigation */}
+          <div className="space-y-1">
+            <button 
+              onClick={() => { setSelectedProject(null); setActiveView('overview'); }}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2.5'} rounded-xl text-sm font-medium transition-all duration-200 ${!selectedProject && activeView === 'overview' ? 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title={sidebarCollapsed ? 'Overview' : ''}
             >
-              <span className="truncate">{project.name}</span>
-              <ChevronRight className={`w-4 h-4 transition-transform ${selectedProject?.id === project.id ? 'rotate-90' : ''}`} />
+              <BarChart3 className="w-5 h-5 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Overview</span>}
             </button>
-          ))}
-          <button 
-            onClick={() => setIsNewProjectModalOpen(true)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950 transition-colors mt-4"
-          >
-            <Plus className="w-4 h-4" />
-            New Project
-          </button>
+            <button 
+              onClick={() => { setSelectedProject(null); setActiveView('reports'); }}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2.5'} rounded-xl text-sm font-medium transition-all duration-200 ${!selectedProject && activeView === 'reports' ? 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title={sidebarCollapsed ? 'Reports' : ''}
+            >
+              <TrendingUp className="w-5 h-5 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Reports</span>}
+            </button>
+            <button 
+              onClick={() => { setSelectedProject(null); setActiveView('analytics'); }}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2.5'} rounded-xl text-sm font-medium transition-all duration-200 ${!selectedProject && activeView === 'analytics' ? 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title={sidebarCollapsed ? 'S1 Analytics' : ''}
+            >
+              <Database className="w-5 h-5 flex-shrink-0" />
+              {!sidebarCollapsed && <span>S1 Analytics</span>}
+            </button>
+            <button 
+              onClick={() => { setSelectedProject(null); setActiveView('teams'); }}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2.5'} rounded-xl text-sm font-medium transition-all duration-200 ${!selectedProject && activeView === 'teams' ? 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title={sidebarCollapsed ? 'Teams' : ''}
+            >
+              <Users className="w-5 h-5 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Teams</span>}
+            </button>
+          </div>
+
+          {/* Teams Section */}
+          {!sidebarCollapsed && (
+            <>
+              <div className="pt-6 pb-2">
+                <h3 className="px-3 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  Teams & Projects
+                </h3>
+              </div>
+              
+              <div className="space-y-1">
+                {Object.entries(projectsByTeam).map(([teamName, teamProjects]) => {
+                  const typedTeamProjects = teamProjects as Project[];
+                  const stats = teamStats[teamName] || { totalProjects: 0, totalTasks: 0, completedTasks: 0, color: '#64748b' };
+                  const isCollapsed = collapsedTeams.has(teamName);
+                  const completionRate = stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0;
+                  
+                  return (
+                    <div key={teamName} className="space-y-1">
+                      {/* Team Header */}
+                      <button
+                        onClick={() => toggleTeamCollapse(teamName)}
+                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm" 
+                              style={{ backgroundColor: stats.color }}
+                            />
+                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-slate-700 dark:text-slate-200 text-sm truncate">
+                                {teamName}
+                              </span>
+                              <span className="px-2 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full">
+                                {stats.totalProjects}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
+                                <div 
+                                  className="h-1.5 rounded-full transition-all duration-300" 
+                                  style={{ 
+                                    width: `${completionRate}%`, 
+                                    backgroundColor: stats.color 
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                {Math.round(completionRate)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                      
+                      {/* Team Projects */}
+                      {!isCollapsed && (
+                        <div className="ml-6 space-y-0.5 border-l border-slate-200 dark:border-slate-700">
+                          {typedTeamProjects.map(project => {
+                            const progressWidth = project.total_tasks > 0 ? (project.completed_tasks / project.total_tasks) * 100 : 0;
+                            return (
+                              <button
+                                key={project.id}
+                                onClick={() => { setSelectedProject(project); setActiveView('overview'); }}
+                                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200 ml-4 mr-2 relative group ${
+                                  selectedProject?.id === project.id 
+                                    ? 'bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 shadow-sm border border-sky-200 dark:border-sky-800' 
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                }`}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium truncate">{project.name}</span>
+                                    <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0 ml-2">
+                                      {project.completed_tasks}/{project.total_tasks}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-1">
+                                      <div 
+                                        className="h-1 rounded-full transition-all duration-300" 
+                                        style={{ 
+                                          width: `${progressWidth}%`, 
+                                          backgroundColor: stats.color 
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                                <ChevronRight className={`w-4 h-4 transition-all duration-200 opacity-0 group-hover:opacity-100 ${selectedProject?.id === project.id ? 'rotate-90 opacity-100' : ''}`} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <button 
+                onClick={() => setIsNewProjectModalOpen(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950 transition-all duration-200 mt-4 border-2 border-dashed border-sky-200 dark:border-sky-800 hover:border-sky-300 dark:hover:border-sky-700"
+              >
+                <Plus className="w-5 h-5" />
+                <span>New Project</span>
+              </button>
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-800">
@@ -492,7 +1069,21 @@ export default function App() {
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
           >
             <Download className="w-4 h-4" />
-            Export Report
+            Export XLSX
+          </button>
+          <button 
+            onClick={handleExportPDF}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-medium hover:bg-sky-700 transition-colors mt-2"
+          >
+            <Download className="w-4 h-4" />
+            Export PDF
+          </button>
+          <button 
+            onClick={handleExportDOCX}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors mt-2"
+          >
+            <Download className="w-4 h-4" />
+            Export DOCX
           </button>
         </div>
       </aside>
@@ -510,7 +1101,7 @@ export default function App() {
               </button>
             )}
             <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-              {selectedProject ? selectedProject.name : activeView === 'analytics' ? 'S1 Analytics - Cases Report' : activeView === 'reports' ? 'Project Reports & Statistics' : 'Dashboard Overview'}
+              {selectedProject ? selectedProject.name : activeView === 'analytics' ? 'S1 Analytics - Cases Report' : activeView === 'reports' ? 'Project Reports & Statistics' : activeView === 'teams' ? 'Team Management' : 'Dashboard Overview'}
             </h1>
           </div>
           <div className="flex items-center gap-4">
@@ -595,10 +1186,26 @@ export default function App() {
                       {addedCaseIds.size > 0 && (
                         <span className="px-2.5 py-0.5 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-full text-xs font-bold">{addedCaseIds.size} added</span>
                       )}
+                      {activeFilterCount > 0 && (
+                        <span className="px-2.5 py-0.5 bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded-full text-xs font-bold">
+                          {filteredS1Cases.length} of {s1Cases.filter(c => !c.is_case_resolved).length} active cases
+                        </span>
+                      )}
                     </div>
-                    <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-                      {s1Pagination.offset + 1}–{Math.min(s1Pagination.offset + s1Cases.length, s1Pagination.total)} of {s1Pagination.total}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {activeFilterCount > 0 && (
+                        <button
+                          onClick={() => setS1Filters({ group_name: '', assigned_to: '', classification: '', channel: '', quarter: '', case_status: '', task_status: '', subject: '' })}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                          Clear filters
+                        </button>
+                      )}
+                      <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                        {s1Pagination.offset + 1}–{Math.min(s1Pagination.offset + s1Cases.length, s1Pagination.total)} of {s1Pagination.total}
+                      </span>
+                    </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -609,11 +1216,87 @@ export default function App() {
                           <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Group</th>
                           <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Assigned To</th>
                           <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Classification</th>
+                          <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Quarter</th>
+                          <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Case Status</th>
+                          <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Task Status</th>
                           <th className="text-center px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Action</th>
+                        </tr>
+                        <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                          <td className="px-5 py-2"></td>
+                          <td className="px-5 py-2">
+                            <input
+                              type="text"
+                              value={s1Filters.subject}
+                              onChange={e => setS1Filters(prev => ({ ...prev, subject: e.target.value }))}
+                              placeholder="Filter subject..."
+                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-1 focus:ring-sky-500 dark:text-slate-200 placeholder:text-slate-400"
+                            />
+                          </td>
+                          <td className="px-5 py-2">
+                            <select
+                              value={s1Filters.group_name}
+                              onChange={e => setS1Filters(prev => ({ ...prev, group_name: e.target.value }))}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-1 focus:ring-sky-500 dark:text-slate-200 appearance-none cursor-pointer"
+                            >
+                              <option value="">All</option>
+                              {s1FilterOptions.group_name.map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-5 py-2">
+                            <select
+                              value={s1Filters.assigned_to}
+                              onChange={e => setS1Filters(prev => ({ ...prev, assigned_to: e.target.value }))}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-1 focus:ring-sky-500 dark:text-slate-200 appearance-none cursor-pointer"
+                            >
+                              <option value="">All</option>
+                              {s1FilterOptions.assigned_to.map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-5 py-2">
+                            <select
+                              value={s1Filters.classification}
+                              onChange={e => setS1Filters(prev => ({ ...prev, classification: e.target.value }))}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-1 focus:ring-sky-500 dark:text-slate-200 appearance-none cursor-pointer"
+                            >
+                              <option value="">All</option>
+                              {s1FilterOptions.classification.map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-5 py-2">
+                            <select
+                              value={s1Filters.quarter}
+                              onChange={e => setS1Filters(prev => ({ ...prev, quarter: e.target.value }))}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-1 focus:ring-sky-500 dark:text-slate-200 appearance-none cursor-pointer"
+                            >
+                              <option value="">All</option>
+                              {s1FilterOptions.quarter.map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-5 py-2">
+                            <select
+                              value={s1Filters.case_status}
+                              onChange={e => setS1Filters(prev => ({ ...prev, case_status: e.target.value }))}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-1 focus:ring-sky-500 dark:text-slate-200 appearance-none cursor-pointer"
+                            >
+                              <option value="">All</option>
+                              {s1FilterOptions.case_status.map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-5 py-2">
+                            <select
+                              value={s1Filters.task_status}
+                              onChange={e => setS1Filters(prev => ({ ...prev, task_status: e.target.value }))}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-1 focus:ring-sky-500 dark:text-slate-200 appearance-none cursor-pointer"
+                            >
+                              <option value="">All</option>
+                              {s1FilterOptions.task_status.map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-5 py-2"></td>
                         </tr>
                       </thead>
                       <tbody>
-                        {s1Cases.map((c, idx) => {
+                        {filteredS1Cases.map((c, idx) => {
                           const isAdded = addedCaseIds.has(c.case_id);
                           return (
                             <tr 
@@ -650,12 +1333,54 @@ export default function App() {
                                   <span className="text-xs text-slate-400 dark:text-slate-500">-</span>
                                 )}
                               </td>
+                              <td className="px-5 py-3.5">
+                                {c.quarter ? (
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">
+                                    {c.quarter}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-slate-400 dark:text-slate-500">-</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                                  getCaseStateColor(c.case_state_id)
+                                }`}>
+                                  {getCaseStateText(c.case_state_id)}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3.5">
+                                {c.task_id ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                                      c.task_status === 'done' 
+                                        ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                        : c.task_status === 'in-progress'
+                                        ? 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                                        : 'bg-gray-50 dark:bg-gray-950 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800'
+                                    }`}>
+                                      {c.task_status === 'done' ? '✓ Done' : c.task_status === 'in-progress' ? '⏳ In Progress' : '📝 To Do'}
+                                    </span>
+                                    {c.task_auto_completed && (
+                                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium" title="Task automatically marked as completed due to resolved case">
+                                        Auto-completed
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-slate-400 dark:text-slate-500">No task</span>
+                                )}
+                              </td>
                               <td className="px-5 py-3.5 text-center">
                                 {isAdded ? (
-                                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-semibold">
+                                  <button
+                                    onClick={() => setAddToProjectModalCase(c)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-semibold hover:bg-emerald-200 dark:hover:bg-emerald-800 active:scale-95 transition-all cursor-pointer"
+                                    title="Click to reassign to another project"
+                                  >
                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                     Added
-                                  </span>
+                                  </button>
                                 ) : (
                                   <button
                                     onClick={() => setAddToProjectModalCase(c)}
@@ -678,7 +1403,7 @@ export default function App() {
                       <button
                         disabled={s1Pagination.offset === 0}
                         onClick={() => fetchS1Cases(Math.max(0, s1Pagination.offset - s1Pagination.page_size))}
-                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-sky-950 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
                       >
                         Previous
                       </button>
@@ -688,7 +1413,7 @@ export default function App() {
                       <button
                         disabled={s1Pagination.offset + s1Pagination.page_size >= s1Pagination.total}
                         onClick={() => fetchS1Cases(s1Pagination.offset + s1Pagination.page_size)}
-                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-sky-950 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
                       >
                         Next
                       </button>
@@ -1026,6 +1751,116 @@ export default function App() {
                 </div>
               )}
             </div>
+          ) : !selectedProject && activeView === 'teams' ? (
+            /* Teams Management View */
+            <div className="space-y-6">
+              {/* Teams Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Team Management</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Organize projects by teams and manage team members</p>
+                </div>
+                <button 
+                  onClick={() => setIsNewTeamModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-xl font-medium hover:bg-sky-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Team
+                </button>
+              </div>
+
+              {/* Teams Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {teams.map(team => {
+                  const teamProjects = projects.filter(p => p.team === team.name);
+                  return (
+                    <motion.div 
+                      key={team.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div 
+                              className={`w-4 h-4 rounded-full`}
+                              style={{ backgroundColor: team.color }}
+                            ></div>
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{team.name}</h3>
+                          </div>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">{team.description}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => setEditingTeam(team)}
+                            className="p-2 text-slate-400 hover:text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950 rounded-lg transition-colors"
+                            title="Editar equipo"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => deleteTeam(team.id)}
+                            className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg transition-colors"
+                            title="Eliminar equipo"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-500 dark:text-slate-400">Projects</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{teamProjects.length}</span>
+                        </div>
+                        
+                        {teamProjects.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Recent Projects</h4>
+                            {teamProjects.slice(0, 3).map(project => (
+                              <button
+                                key={project.id}
+                                onClick={() => { setSelectedProject(project); setActiveView('overview'); }}
+                                className="w-full text-left p-2 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                              >
+                                <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{project.name}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">{project.tasks?.length || 0} tasks</div>
+                              </button>
+                            ))}
+                            {teamProjects.length > 3 && (
+                              <div className="text-xs text-slate-500 dark:text-slate-400 text-center py-1">
+                                +{teamProjects.length - 3} more projects
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {teamProjects.length === 0 && (
+                          <div className="text-center py-4 text-slate-400 dark:text-slate-500 text-sm">
+                            No projects yet
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+                
+                {teams.length === 0 && (
+                  <div className="col-span-full bg-white dark:bg-slate-900 p-12 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 text-center">
+                    <Users className="w-12 h-12 text-slate-200 dark:text-slate-700 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">No teams yet</h3>
+                    <p className="text-slate-500 dark:text-slate-400 mb-4">Create your first team to organize projects</p>
+                    <button 
+                      onClick={() => setIsNewTeamModalOpen(true)}
+                      className="px-4 py-2 bg-sky-600 text-white rounded-lg font-medium hover:bg-sky-700 transition-colors"
+                    >
+                      Create Team
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : !selectedProject ? (
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1063,32 +1898,95 @@ export default function App() {
               </div>
 
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <h2 className="font-semibold text-slate-800 dark:text-slate-100">Recent Projects</h2>
-                  <button 
-                    onClick={() => setIsNewProjectModalOpen(true)}
-                    className="text-sm text-sky-600 font-medium hover:underline"
-                  >
-                    View All
-                  </button>
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-semibold text-slate-800 dark:text-slate-100">Projects</h2>
+                    <button 
+                      onClick={() => setIsNewProjectModalOpen(true)}
+                      className="flex items-center gap-2 px-3 py-2 bg-sky-600 text-white rounded-lg text-sm font-medium hover:bg-sky-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      New Project
+                    </button>
+                  </div>
+                  
+                  {/* Team Filter */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Filtrar por equipo:</label>
+                    <select 
+                      value={selectedTeamFilter}
+                      onChange={(e) => setSelectedTeamFilter(e.target.value)}
+                      className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:text-slate-200 min-w-[180px]"
+                    >
+                      <option value="all">Todos los equipos ({projects.length})</option>
+                      {teams.map(team => {
+                        const teamProjectsCount = projects.filter(p => p.team === team.name).length;
+                        return (
+                          <option key={team.id} value={team.name}>
+                            {team.name} ({teamProjectsCount})
+                          </option>
+                        );
+                      })}
+                      {projects.some(p => !p.team) && (
+                        <option value="Unassigned">
+                          Sin equipo ({projects.filter(p => !p.team).length})
+                        </option>
+                      )}
+                    </select>
+                    
+                    {selectedTeamFilter !== 'all' && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: teams.find(t => t.name === selectedTeamFilter)?.color || '#6B7280' }}
+                        ></div>
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                          Mostrando: {selectedTeamFilter}
+                        </span>
+                        <button 
+                          onClick={() => setSelectedTeamFilter('all')}
+                          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                          title="Ver todos"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {projects.length === 0 ? (
+                  {filteredProjects.length === 0 ? (
                     <div className="p-12 text-center">
                       <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                         <LayoutDashboard className="w-8 h-8 text-slate-300 dark:text-slate-600" />
                       </div>
-                      <p className="text-slate-500 dark:text-slate-400">No projects yet. Create your first one!</p>
+                      <p className="text-slate-500 dark:text-slate-400">
+                        {selectedTeamFilter === 'all' 
+                          ? 'No hay proyectos. ¡Crea el primero!' 
+                          : `No hay proyectos en el equipo ${selectedTeamFilter}`
+                        }
+                      </p>
                     </div>
                   ) : (
-                    projects.map(project => (
+                    filteredProjects.map(project => (
                       <div 
                         key={project.id} 
                         className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                         onClick={() => setSelectedProject(project)}
                       >
                         <div className="flex-1 min-w-0 pr-4">
-                          <h3 className="font-medium text-slate-800 dark:text-slate-100 truncate">{project.name}</h3>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-medium text-slate-800 dark:text-slate-100 truncate">{project.name}</h3>
+                            {project.team && (
+                              <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md flex-shrink-0">
+                                <div 
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: teams.find(t => t.name === project.team)?.color || '#6B7280' }}
+                                ></div>
+                                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{project.team}</span>
+                              </div>
+                            )}
+                          </div>
                           <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{project.description}</p>
                         </div>
                         <div className="flex items-center gap-8">
@@ -1127,11 +2025,52 @@ export default function App() {
           ) : (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                   <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{selectedProject.name}</h2>
-                  <p className="text-slate-500 dark:text-slate-400">{selectedProject.description}</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <p className="text-slate-500 dark:text-slate-400">{selectedProject.description}</p>
+                    {selectedProject.team && (
+                      <div className="flex items-center gap-2 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: teams.find(t => t.name === selectedProject.team)?.color || '#6B7280' }}
+                        ></div>
+                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{selectedProject.team}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {!isEditingProjectTeam ? (
+                    <button 
+                      onClick={() => setIsEditingProjectTeam(true)}
+                      className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                      title="Cambiar equipo"
+                    >
+                      <Users className="w-4 h-4" />
+                      Cambiar Equipo
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <select 
+                        defaultValue={selectedProject.team || ''}
+                        onChange={(e) => updateProjectTeam(selectedProject.id, e.target.value)}
+                        className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:text-slate-200"
+                      >
+                        <option value="">Sin equipo</option>
+                        {teams.map(team => (
+                          <option key={team.id} value={team.name}>{team.name}</option>
+                        ))}
+                      </select>
+                      <button 
+                        onClick={() => setIsEditingProjectTeam(false)}
+                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                        title="Cancelar"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                   <button 
                     onClick={() => setIsNewTaskModalOpen(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-medium hover:bg-sky-700 transition-colors"
@@ -1282,6 +2221,19 @@ export default function App() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Team</label>
+                  <select 
+                    name="team" 
+                    required
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 transition-all dark:text-slate-200"
+                  >
+                    <option value="">Select a team...</option>
+                    {teams.map(team => (
+                      <option key={team.id} value={team.name}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
                   <textarea 
                     name="description" 
@@ -1412,30 +2364,47 @@ export default function App() {
               className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 dark:border-slate-700">
-                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Add Case as Task</h3>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                  {addedCaseIds.has(addToProjectModalCase.case_id) ? 'Reassign Case' : 'Add Case as Task'}
+                </h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                   Case #{addToProjectModalCase.case_id} — {addToProjectModalCase.subject || 'No subject'}
                 </p>
               </div>
               <div className="p-6 space-y-3">
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Select a project:</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  {addedCaseIds.has(addToProjectModalCase.case_id) ? 'Select a different project:' : 'Select a project:'}
+                </p>
                 {projects.length === 0 ? (
                   <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No projects yet.</p>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {projects.map(project => (
-                      <button
-                        key={project.id}
-                        onClick={() => addCaseAsTask(addToProjectModalCase, project.id)}
-                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 hover:bg-sky-50 dark:hover:bg-sky-950 hover:border-sky-200 dark:hover:border-sky-800 transition-colors text-left"
-                      >
-                        <div>
-                          <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">{project.name}</span>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{project.total_tasks} tasks</p>
-                        </div>
-                        <PlusCircle className="w-5 h-5 text-sky-500" />
-                      </button>
-                    ))}
+                    {projects.map(project => {
+                      const currentMapping = addedCaseIds.get(addToProjectModalCase.case_id);
+                      const isCurrent = currentMapping?.projectId === project.id;
+                      return (
+                        <button
+                          key={project.id}
+                          onClick={() => addCaseAsTask(addToProjectModalCase, project.id)}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left ${
+                            isCurrent
+                              ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950'
+                              : 'border-slate-200 dark:border-slate-600 hover:bg-sky-50 dark:hover:bg-sky-950 hover:border-sky-200 dark:hover:border-sky-800'
+                          }`}
+                        >
+                          <div>
+                            <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">{project.name}</span>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {project.total_tasks} tasks{isCurrent && ' · Current'}
+                            </p>
+                          </div>
+                          {isCurrent
+                            ? <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                            : <PlusCircle className="w-5 h-5 text-sky-500" />
+                          }
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
                 <button
@@ -1451,6 +2420,298 @@ export default function App() {
                 >
                   Cancel
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* New Team Modal */}
+      <AnimatePresence>
+        {isNewTeamModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsNewTeamModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Create New Team</h3>
+              </div>
+              <form onSubmit={createTeam} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Team Name</label>
+                  <input 
+                    name="name" 
+                    required 
+                    autoFocus
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 transition-all dark:text-slate-200 dark:placeholder-slate-400"
+                    placeholder="e.g. Development Team"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+                  <textarea 
+                    name="description" 
+                    rows={3}
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 transition-all dark:text-slate-200 dark:placeholder-slate-400 resize-none"
+                    placeholder="What does this team work on?"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Team Color</label>
+                  <div className="grid grid-cols-8 gap-2">
+                    {[
+                      '#3B82F6', '#EF4444', '#10B981', '#F59E0B', 
+                      '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16',
+                      '#6B7280', '#F97316', '#8B5A2B', '#059669'
+                    ].map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={(e) => {
+                          // Uncheck all others and check this one
+                          const form = (e.target as HTMLButtonElement).closest('form');
+                          if (form) {
+                            const colorInputs = form.querySelectorAll('input[name="color"]') as NodeListOf<HTMLInputElement>;
+                            colorInputs.forEach(input => input.checked = false);
+                            const targetInput = form.querySelector(`input[value="${color}"]`) as HTMLInputElement;
+                            if (targetInput) targetInput.checked = true;
+                          }
+                        }}
+                        className="w-8 h-8 rounded-lg border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-colors relative"
+                        style={{ backgroundColor: color }}
+                      >
+                        <input 
+                          type="radio" 
+                          name="color" 
+                          value={color} 
+                          required
+                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setIsNewTeamModalOpen(false)}
+                    className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-sky-600 text-white rounded-xl font-medium hover:bg-sky-700 transition-colors"
+                  >
+                    Create Team
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Team Modal */}
+      <AnimatePresence>
+        {editingTeam && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingTeam(null)}
+              className="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Editar Equipo</h3>
+              </div>
+              <form onSubmit={updateTeam} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nombre del Equipo</label>
+                  <input 
+                    name="name" 
+                    required 
+                    autoFocus
+                    defaultValue={editingTeam.name}
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 transition-all dark:text-slate-200 dark:placeholder-slate-400"
+                    placeholder="e.g. Development Team"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Descripción</label>
+                  <textarea 
+                    name="description" 
+                    rows={3}
+                    defaultValue={editingTeam.description}
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 transition-all dark:text-slate-200 dark:placeholder-slate-400 resize-none"
+                    placeholder="¿En qué trabaja este equipo?"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Color del Equipo</label>
+                  <div className="grid grid-cols-8 gap-2">
+                    {[
+                      '#3B82F6', '#EF4444', '#10B981', '#F59E0B', 
+                      '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16',
+                      '#6B7280', '#F97316', '#8B5A2B', '#059669'
+                    ].map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={(e) => {
+                          // Uncheck all others and check this one
+                          const form = (e.target as HTMLButtonElement).closest('form');
+                          if (form) {
+                            const colorInputs = form.querySelectorAll('input[name="color"]') as NodeListOf<HTMLInputElement>;
+                            colorInputs.forEach(input => input.checked = false);
+                            const targetInput = form.querySelector(`input[value="${color}"]`) as HTMLInputElement;
+                            if (targetInput) targetInput.checked = true;
+                          }
+                        }}
+                        className="w-8 h-8 rounded-lg border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-colors relative"
+                        style={{ backgroundColor: color }}
+                      >
+                        <input 
+                          type="radio" 
+                          name="color" 
+                          value={color} 
+                          required
+                          defaultChecked={editingTeam.color === color}
+                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setEditingTeam(null)}
+                    className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-sky-600 text-white rounded-xl font-medium hover:bg-sky-700 transition-colors"
+                  >
+                    Guardar Cambios
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Alert Modal */}
+      <AnimatePresence>
+        {alertModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setAlertModal({ ...alertModal, isOpen: false })}
+              className="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden"
+            >
+              <div className={`p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 ${
+                alertModal.type === 'success' ? 'text-green-600 dark:text-green-400' :
+                alertModal.type === 'error' ? 'text-red-600 dark:text-red-400' :
+                alertModal.type === 'warning' ? 'text-yellow-600 dark:text-yellow-400' :
+                'text-blue-600 dark:text-blue-400'
+              }`}>
+                {alertModal.type === 'success' && <CheckCircle2 className="w-6 h-6" />}
+                {alertModal.type === 'error' && <AlertCircle className="w-6 h-6" />}
+                {alertModal.type === 'warning' && <AlertCircle className="w-6 h-6" />}
+                {alertModal.type === 'info' && <AlertCircle className="w-6 h-6" />}
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{alertModal.title}</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-slate-600 dark:text-slate-300 mb-6">{alertModal.message}</p>
+                <button 
+                  onClick={() => setAlertModal({ ...alertModal, isOpen: false })}
+                  className={`w-full px-4 py-2 rounded-xl font-medium transition-colors ${
+                    alertModal.type === 'success' ? 'bg-green-600 hover:bg-green-700 text-white' :
+                    alertModal.type === 'error' ? 'bg-red-600 hover:bg-red-700 text-white' :
+                    alertModal.type === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700 text-white' :
+                    'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  Entendido
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirm Modal */}
+      <AnimatePresence>
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (confirmModal.onCancel) confirmModal.onCancel();
+                setConfirmModal({ ...confirmModal, isOpen: false });
+              }}
+              className="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 text-red-600 dark:text-red-400">
+                <AlertCircle className="w-6 h-6" />
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{confirmModal.title}</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-slate-600 dark:text-slate-300 mb-6">{confirmModal.message}</p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => {
+                      if (confirmModal.onCancel) confirmModal.onCancel();
+                      setConfirmModal({ ...confirmModal, isOpen: false });
+                    }}
+                    className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                  >
+                    {confirmModal.cancelText || 'Cancelar'}
+                  </button>
+                  <button 
+                    onClick={confirmModal.onConfirm}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors"
+                  >
+                    {confirmModal.confirmText || 'Confirmar'}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

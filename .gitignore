@@ -1,9 +1,88 @@
-node_modules/
+### Windows template
+# Windows thumbnail cache files
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+
+# Folder config file
+Desktop.ini
+
+# Windows shortcuts
+*.lnk
+
+### macOS template
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+### Vim template
+# Swap
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-v][a-z]
+[._]sw[a-p]
+# Session
+Session.vim
+
+### Other
+# IDE Files
+.idea
+*.iml
+out
+gen
+nbproject/
+.remote-sync.json
+sftp-config.json
+sftp.json
+*.php_cs.cache
+*.code-workspace
+.vscode
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Certificate files
+# SSL
+*.key
+*.csr
+*.crt
+*.pem
+
+# Misc
+.htpasswd
+*.log
+nohup.out
+
+### S1 Specific
+# Default Config Files
+conf/config.conf
+conf/config.ini
+conf/config_local.conf
+
+# S1_SDK Soft Link
+S1_SDK
+s1_sdk
+SDK
+sdk
+
+# ReactJS
+node_modules
+package-lock.json
+
+# Project Specific
+*.db
+.env*
+!.env.example
 build/
 dist/
 coverage/
-.DS_Store
-*.log
-.env*
-!.env.example
-*.db

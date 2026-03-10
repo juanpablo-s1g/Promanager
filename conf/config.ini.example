@@ -1,0 +1,16 @@
+[server]
+port=4100
+cors_enabled=true
+database_path=projects.db
+
+[s1_analytics]
+api_url=https://api.analytics.va.s1g.in
+default_cpg_id=8322880
+page_size=100
+
+[teams]
+default_teams=Development,QA,DevOps,Frontend
+
+[export]
+supported_formats=xlsx,pdf,docx
+max_export_size=10000
